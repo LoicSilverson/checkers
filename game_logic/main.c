@@ -1,10 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define EMPTY 0x0
-#define BLACK 0x1
-#define WHITE 0x3
-#define QUEEN 0x4
+#define EMPTY        0x0
+#define COLOR_MASK   0x3
+#define BLACK        0x1
+#define WHITE        0x3
+#define QUEEN        0x4
+
+#define UL 0 //UP LEFT
+#define UR 1 //UP LEFT
+#define DL 2 //UP RIGHT
+#define DR 3 //DOWN LEFT
+#define END 0xff//END MOVE
+
+struct position
+{
+   char row;
+   char element;
+};
 
 void game_init_row(char row[], char man)
 {
@@ -18,7 +31,7 @@ void game_init_board(char board[8][4])
 	int i = 0;
 	for(i = 0; i < 3; i++)
 	{
-		game_init_row(board[i], BLACK);
+		game_init_row(board[i],   BLACK);
 		game_init_row(board[7-i], WHITE);
 	}
    game_init_row(board[3], EMPTY);
@@ -27,7 +40,7 @@ void game_init_board(char board[8][4])
 
 void game_print_board(char board[8][4])
 {
-	int row, el;
+	int row;
 	for(row = 0; row < 8; row++)
 		if(row %2 == 0)
 			printf("%d %d %d %d \n",
@@ -43,12 +56,52 @@ void game_print_board(char board[8][4])
 				board[row][3]);
 }
 
+void move_position(struct position * pos, char dir)
+{
+   char cond_row = pos->row & 0x1;
+   char cond_dir = dir & 0x1;
+
+   if(!(cond_row ^ cond_dir)) cond_row ? pos->element++ : pos->element--;
+
+   if(dir & 0x2) pos->row++;
+   else pos->row--;
+}
+
+void move(char board[8][4], struct position pos, char * moves)
+{
+
+}
+
 void game()
 {
 	char board[8][4];
 	printf("The game has started\n");
    game_init_board(board);
    game_print_board(board);
+
+   struct position pos;
+   char row = 2;
+   char element = 2;
+   pos.row = row;
+   pos.element = element;
+   move_position(&pos, UL);
+   printf("New position row: %d, element: %d\n", pos.row, pos.element);
+
+   pos.row = row;
+   pos.element = element;
+   move_position(&pos, UR);
+   printf("New position row: %d, element: %d\n", pos.row, pos.element);
+
+   pos.row = row;
+   pos.element = element;
+   move_position(&pos, DL);
+   printf("New position row: %d, element: %d\n", pos.row, pos.element);
+
+   pos.row = row;
+   pos.element = element;
+   move_position(&pos, DR);
+   printf("New position row: %d, element: %d\n", pos.row, pos.element);
+
 	printf("The game has finished\n");
 }
 
