@@ -91,12 +91,14 @@ void game_print_board(char board[8][4])
 	int row;
 	for(row = 0; row < 8; row++)
 		if(row %2 == 0)
+			//printf("%c %c %c %c \n",
 			printf("%d %d %d %d \n",
 				board[row][0],
 				board[row][1],
 				board[row][2],
 				board[row][3]);
 		else
+			//printf(" %c %c %c %c\n",
 			printf(" %d %d %d %d\n",
 				board[row][0],
 				board[row][1],
