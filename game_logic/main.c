@@ -59,7 +59,7 @@ int main(int argc, const char* argv[])
 
 	if(argc < 3)
 	{
-		printf("Did not recieve two port numbers");
+		printf("Did not recieve two port numbers\n");
 		return 0;
 	}
 	port_dest = atoi(argv[1]);
