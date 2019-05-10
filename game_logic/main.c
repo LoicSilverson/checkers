@@ -1,11 +1,59 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define EMPTY        0x0
-#define COLOR_MASK   0x3
-#define BLACK        0x1
-#define WHITE        0x3
-#define QUEEN        0x4
+#include <termios.h>
+#include <stdio.h>
+
+static struct termios old, new;
+
+/* Initialize new terminal i/o settings */
+void initTermios(int echo)
+{
+  tcgetattr(0, &old); /* grab old terminal i/o settings */
+  new = old; /* make new settings same as old settings */
+  new.c_lflag &= ~ICANON; /* disable buffered i/o */
+  if (echo) {
+      new.c_lflag |= ECHO; /* set echo mode */
+  } else {
+      new.c_lflag &= ~ECHO; /* set no echo mode */
+  }
+  tcsetattr(0, TCSANOW, &new); /* use these new terminal i/o settings now */
+}
+
+/* Restore old terminal i/o settings */
+void resetTermios(void)
+{
+  tcsetattr(0, TCSANOW, &old);
+}
+
+/* Read 1 character - echo defines echo mode */
+char getch_(int echo)
+{
+  char ch;
+  initTermios(echo);
+  ch = getchar();
+  resetTermios();
+  return ch;
+}
+/* Read 1 character without echo */
+char getch(void)
+{
+  return getch_(0);
+}
+
+/* Read 1 character with echo */
+char getche(void)
+{
+  return getch_(1);
+}
+
+#define EMPTY       0x0
+#define COLOR_MASK  0x3
+#define BLACK       0x1
+#define WHITE       0x3
+#define QUEEN       0x4
+
+#define CURSOR      0x8
 
 #define UL 0 //UP LEFT
 #define UR 1 //UP LEFT
@@ -56,52 +104,70 @@ void game_print_board(char board[8][4])
 				board[row][3]);
 }
 
-void move_position(struct position * pos, char dir)
+void game_move_position(struct position * pos, char dir)
 {
-   char cond_row = pos->row & 0x1;
-   char cond_dir = dir & 0x1;
+  if(dir == -1) return;
 
-   if(!(cond_row ^ cond_dir)) cond_row ? pos->element++ : pos->element--;
+  char cond_row = pos->row & 0x1;
+  char cond_dir = dir & 0x1;
 
-   if(dir & 0x2) pos->row++;
-   else pos->row--;
+  if(!(cond_row ^ cond_dir)) cond_row ? pos->element++ : pos->element--;
+
+  if(dir & 0x2) pos->row++;
+  else pos->row--;
+  if(pos->row >= 8 || pos->element >= 4)
+  {
+    pos->row = -1;
+    pos->element = -1;
+  }
 }
 
-void move(char board[8][4], struct position pos, char * moves)
+void game_move(char board[8][4], struct position pos, char * moves)
 {
 
+}
+
+void game_update(char board[8][4])
+{
+  struct position pos;
+  pos.row = 0;
+  pos.element = 0;
+  char c;
+  char dir;
+  while(1)
+  {
+    board[pos.row][pos.element] |= CURSOR;
+    game_print_board(board);
+    printf("= = = = = =\n");
+
+    c = getche();
+    printf("\n");
+
+    switch(c)
+    {
+    case 'q': dir = UL;
+      break;
+    case 'w': dir = UR;
+      break;
+    case 'a': dir = DL;
+      break;
+    case 's': dir = DR;
+      break;
+    default: dir = -1;
+    }
+
+    board[pos.row][pos.element] &= ~CURSOR;
+    game_move_position(&pos, dir);
+    if(pos.row == -1) return;
+  }
 }
 
 void game()
 {
 	char board[8][4];
 	printf("The game has started\n");
-   game_init_board(board);
-   game_print_board(board);
-
-   struct position pos;
-   char row = 2;
-   char element = 2;
-   pos.row = row;
-   pos.element = element;
-   move_position(&pos, UL);
-   printf("New position row: %d, element: %d\n", pos.row, pos.element);
-
-   pos.row = row;
-   pos.element = element;
-   move_position(&pos, UR);
-   printf("New position row: %d, element: %d\n", pos.row, pos.element);
-
-   pos.row = row;
-   pos.element = element;
-   move_position(&pos, DL);
-   printf("New position row: %d, element: %d\n", pos.row, pos.element);
-
-   pos.row = row;
-   pos.element = element;
-   move_position(&pos, DR);
-   printf("New position row: %d, element: %d\n", pos.row, pos.element);
-
+  game_init_board(board);
+  game_update(board);
 	printf("The game has finished\n");
 }
 
