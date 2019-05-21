@@ -1,7 +1,10 @@
 #include <GameState.hpp>
+#include <UDPSocket.hpp>
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <thread>
 
 #include <termios.h>
 
@@ -48,45 +51,28 @@ char getche(void)
   return getch_(1);
 }
 
+UDPSocket sock;
+Buffer msg_in;
+Buffer msg_out;
+sockaddr_in other;
 
+void listen()
+{
+   printf("Listening\n");
+   msg_out.write_c_string("Acknowledged");
+   while(true)
+   {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
+      int recv_len = sock.receive(msg_in, (sockaddr*)&other);
+      if(recv_len == -1) continue;
+      if(ntohs(other.sin_port) == 0) continue;
+      printf("Recieved from %d: %s\n", other.sin_port, msg_in.read_c_string());
+      sock.send(msg_out, (sockaddr*)&other);
 
-
-//void update(char board[8][4])
-//{
-//  position pos;
-//  pos.row = 0;
-//  pos.element = 0;
-//  char c;
-//  char dir;
-//  while(1)
-//  {
-//    board[pos.row][pos.element] |= CURSOR;
-//    game_print_board(board);
-//    printf("= = = = = =\n");
-//
-//    c = getche();
-//    printf("\n");
-//
-//    switch(c)
-//    {
-//    case 'q': dir = UL;
-//      break;
-//    case 'w': dir = UR;
-//      break;
-//    case 'a': dir = DL;
-//      break;
-//    case 's': dir = DR;
-//      break;
-//    default: dir = -1;
-//    }
-//
-//    board[pos.row][pos.element] &= ~CURSOR;
-//    game_move_position(&pos, dir);
-//    if(pos.row == -1) return;
-//  }
-//}
-
+      msg_in.reset();
+   }
+}
 
 int main(int argc, const char* argv[])
 {
@@ -106,5 +92,7 @@ int main(int argc, const char* argv[])
 
 	printf("My port: %d\n", port);
 	GameState game;
-
+   sock.init();
+   sock.bind_port(port);
+   listen();
 }

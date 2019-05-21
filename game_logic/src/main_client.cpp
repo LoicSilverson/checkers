@@ -1,4 +1,8 @@
 #include <GameState.hpp>
+#include <UDPSocket.hpp>
+
+#include <thread>
+#include <mutex>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,40 +53,29 @@ char getche(void)
 }
 
 
-//void update(char board[8][4])
-//{
-//  position pos;
-//  pos.row = 0;
-//  pos.element = 0;
-//  char c;
-//  char dir;
-//  while(1)
-//  {
-//    board[pos.row][pos.element] |= CURSOR;
-//    game_print_board(board);
-//    printf("= = = = = =\n");
-//
-//    c = getche();
-//    printf("\n");
-//
-//    switch(c)
-//    {
-//    case 'q': dir = UL;
-//      break;
-//    case 'w': dir = UR;
-//      break;
-//    case 'a': dir = DL;
-//      break;
-//    case 's': dir = DR;
-//      break;
-//    default: dir = -1;
-//    }
-//
-//    board[pos.row][pos.element] &= ~CURSOR;
-//    game_move_position(&pos, dir);
-//    if(pos.row == -1) return;
-//  }
-//}
+UDPSocket sock;
+Buffer msg_in;
+Buffer msg_out;
+sockaddr_in other;
+sockaddr_in server_addr;
+std::mutex sock_mtx;
+
+//void listen
+
+void send()
+{
+   msg_out.write_c_string("How are you doing?");
+   while(true)
+   {
+      printf("Sending\n");
+
+      sock_mtx.lock();
+      sock.send(msg_out, (sockaddr*)&server_addr);
+      sock_mtx.unlock();
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+   }
+}
 
 void print_board(const GameState& g)
 {
@@ -122,22 +115,47 @@ int main(int argc, const char* argv[])
 	}
 
 	GameState game;
-  print_board(game);
 
-  game.move({2, 0}, {DR});
-  printf("= = = = = = =\n");
-  print_board(game);
+   sock.init();
+   server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+   server_addr.sin_port = htons(port);
+   server_addr.sin_family = AF_INET;
 
-  game.move({3, 0}, {DL});
-  printf("= = = = = = =\n");
-  print_board(game);
+   std::thread first ([&]()
+   {
+      printf("Listening\n");
+      while(true)
+      {
+         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-  game.move({4, 0}, {DL});
-  printf("= = = = = = =\n");
-  print_board(game);
+         sock_mtx.lock();
+         int recv_len = sock.receive(msg_in, (sockaddr*)&other);
+         sock_mtx.unlock();
+         if(recv_len == -1) continue;
+         if(ntohs(other.sin_port) == 0) continue;
+         printf("Recieved from %d: %s\n", other.sin_port, msg_in.read_c_string());
+         msg_in.reset();
+      }
+   });
 
-  game.move({4, 0}, {DR});
-  printf("= = = = = = =\n");
-  print_board(game);
+   send();
+   /*
+   print_board(game);
 
+   game.move({2, 0}, {DR});
+   printf("= = = = = = =\n");
+   print_board(game);
+
+   game.move({3, 0}, {DL});
+   printf("= = = = = = =\n");
+   print_board(game);
+
+   game.move({4, 0}, {DL});
+   printf("= = = = = = =\n");
+   print_board(game);
+
+   game.move({4, 0}, {DR});
+   printf("= = = = = = =\n");
+   print_board(game);
+   */
 }
