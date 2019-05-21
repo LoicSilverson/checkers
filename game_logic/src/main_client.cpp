@@ -1,5 +1,6 @@
 #include <GameState.hpp>
 #include <UDPSocket.hpp>
+#include <UDPCodes.hpp>
 
 #include <thread>
 #include <mutex>
@@ -64,6 +65,9 @@ std::mutex sock_mtx;
 
 void send()
 {
+   msg_in.reset();
+   msg_out.reset();
+   msg_out.write_int(MSG);
    msg_out.write_c_string("How are you doing?");
    while(true)
    {
@@ -76,6 +80,47 @@ void send()
       std::this_thread::sleep_for(std::chrono::milliseconds(1000));
    }
 }
+
+bool reg_server(const char * ip, int port)
+{
+   server_addr.sin_addr.s_addr = inet_addr(ip);
+   server_addr.sin_port = htons(port);
+   server_addr.sin_family = AF_INET;
+
+   sock.set_timeout(1, 0);
+
+   msg_out.reset();
+   msg_out.write_int(REGISTER);
+
+   sock_mtx.lock();
+   sock.send(msg_out, (sockaddr*)&server_addr);
+   int recv_len = sock.receive(msg_in, (sockaddr*)&other);
+   sock_mtx.unlock();
+
+   if(recv_len == -1)
+   {
+      printf("Did not recieve an answer, could not register\n");
+      return false;
+   }
+
+   int code = msg_in.read_int();
+   if(code == CONFIRM)
+   {
+      printf("Registered successfully\n");
+      sock.set_timeout(0, 10);
+      return true;
+   }
+
+   if(code == DENY)
+   {
+      printf("Server denied registration, could not register\n");
+      return false;
+   }
+
+   printf("Resieved trash from server, could not register\n");
+   return false;
+}
+
 
 void print_board(const GameState& g)
 {
@@ -117,9 +162,7 @@ int main(int argc, const char* argv[])
 	GameState game;
 
    sock.init();
-   server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-   server_addr.sin_port = htons(port);
-   server_addr.sin_family = AF_INET;
+   if(!reg_server("127.0.0.1", port)) return 0;
 
    std::thread first ([&]()
    {

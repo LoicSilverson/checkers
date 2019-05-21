@@ -1,10 +1,12 @@
 #include <GameState.hpp>
 #include <UDPSocket.hpp>
+#include <UDPCodes.hpp>
+
+#include <thread>
+#include <unordered_map>
 
 #include <stdio.h>
 #include <stdlib.h>
-
-#include <thread>
 
 #include <termios.h>
 
@@ -51,15 +53,42 @@ char getche(void)
   return getch_(1);
 }
 
+struct sockaddr_map : sockaddr_in
+{
+  bool operator==(const sockaddr_map& that)
+  {
+    return sin_addr.s_addr == that.sin_addr.s_addr && sin_port == that.sin_port;
+  }
+  sockaddr_map(const sockaddr_in & that)
+  {
+    memcpy(this, &that, sizeof(that));
+  }
+};
+
+struct sockaddrHasher
+{
+   std::size_t operator()(const sockaddr_map& s) const
+   {
+      return (size_t)(s.sin_addr.s_addr ^ s.sin_port);
+   }
+};
+
+bool operator==(const sockaddr_map& first, const sockaddr_map& second)
+{
+  return first.sin_addr.s_addr == second.sin_addr.s_addr && first.sin_port == second.sin_port;
+}
+
+
 UDPSocket sock;
 Buffer msg_in;
 Buffer msg_out;
 sockaddr_in other;
 
+std::unordered_map<sockaddr_map, bool, sockaddrHasher> clients;
+
 void listen()
 {
    printf("Listening\n");
-   msg_out.write_c_string("Acknowledged");
    while(true)
    {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -67,10 +96,25 @@ void listen()
       int recv_len = sock.receive(msg_in, (sockaddr*)&other);
       if(recv_len == -1) continue;
       if(ntohs(other.sin_port) == 0) continue;
-      printf("Recieved from %d: %s\n", other.sin_port, msg_in.read_c_string());
-      sock.send(msg_out, (sockaddr*)&other);
+
+      int code = msg_in.read_int();
+      if(code == REGISTER)
+      {
+         printf("Registarion attempt\n");
+         clients[(sockaddr_map)other] = true;
+         msg_out.write_int(CONFIRM);
+         sock.send(msg_out, (sockaddr*)&other);
+
+      }
+      else if(code == MSG)
+      {
+         printf("%d: %s\n", other.sin_port, msg_in.read_c_string());
+         msg_out.write_c_string("Acknowledge");
+         sock.send(msg_out, (sockaddr*)&other);
+      }
 
       msg_in.reset();
+      msg_out.reset();
    }
 }
 
