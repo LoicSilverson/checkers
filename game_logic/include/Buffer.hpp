@@ -14,6 +14,36 @@ struct Buffer
     m_size = 0;
   }
 
+  template<typename T>
+  bool write(T data)
+  {
+    int new_size = m_size + sizeof(T);
+    if(new_size > BUFLEN) return false;
+    memcpy(&m_data[m_size], &data, sizeof(T));
+    m_size = new_size;
+    return true;
+  }
+
+  template<typename T>
+  T read()
+  {
+    int new_size = m_size + sizeof(T);
+    if(new_size > BUFLEN) return -1;
+    T data;
+    memcpy(&data, &m_data[m_size], sizeof(T));
+    m_size = new_size;
+    return data;
+  }
+
+  bool write_char(char data)
+  {
+    int new_size = m_size + sizeof(char);
+    if(new_size > BUFLEN) return false;
+    memcpy(&m_data[m_size], &data, sizeof(char));
+    m_size = new_size;
+    return true;
+  }
+
   bool write_int(int data)
   {
     int new_size = m_size + sizeof(int);
@@ -40,15 +70,6 @@ struct Buffer
     strcpy(&m_data[m_size], data);
     m_size = new_size;
     memset(&m_data[m_size++], '\0', 1);
-    return true;
-  }
-
-  bool write_char(char data)
-  {
-    int new_size = m_size + sizeof(char);
-    if(new_size > BUFLEN) return false;
-    memcpy(&m_data[m_size], &data, sizeof(int));
-    m_size = new_size;
     return true;
   }
 

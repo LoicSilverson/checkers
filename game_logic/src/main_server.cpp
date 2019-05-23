@@ -1,6 +1,6 @@
 #include <GameState.hpp>
 #include <UDPSocket.hpp>
-#include <UDPCodes.hpp>
+#include <NetCommon.hpp>
 
 #include <thread>
 #include <unordered_map>
@@ -53,6 +53,34 @@ char getche(void)
   return getch_(1);
 }
 
+
+GameState game;
+
+void print_board(const GameState& g)
+{
+  auto & board = g.board;
+
+  printf("X |0|0|1|1|2|2|3|3|\n");
+  printf("__|_|_|_|_|_|_|_|_|\n");
+
+  for(int row = 0; row < 8; row++)
+  if(row %2 == 0)
+  //printf("%c %c %c %c \n",
+  printf("%d |%d| |%d| |%d| |%d| |\n", row,
+  board[row][0],
+  board[row][1],
+  board[row][2],
+  board[row][3]);
+  else
+  //printf(" %c %c %c %c\n",
+  printf("%d | |%d| |%d| |%d| |%d|\n", row,
+  board[row][0],
+  board[row][1],
+  board[row][2],
+  board[row][3]);
+  printf("Moving team: %s\n", g.black_move ? "BLACK" : "WHITE");
+}
+
 struct sockaddr_map : sockaddr_in
 {
   bool operator==(const sockaddr_map& that)
@@ -97,14 +125,15 @@ void listen()
       if(recv_len == -1) continue;
       if(ntohs(other.sin_port) == 0) continue;
 
-      int code = msg_in.read_int();
+      int code = msg_in.read<int>();
       if(code == REGISTER)
       {
          printf("Registarion attempt\n");
          clients[(sockaddr_map)other] = true;
-         msg_out.write_int(CONFIRM);
+         msg_out.write(CONFIRM);
          sock.send(msg_out, (sockaddr*)&other);
 
+         print_board(game);
       }
       else if(code == MSG)
       {
@@ -112,11 +141,20 @@ void listen()
          msg_out.write_c_string("Acknowledge");
          sock.send(msg_out, (sockaddr*)&other);
       }
+      else if(code == MOVE)
+      {
+        printf("Recieved a move\n");
+        position pos{msg_in.read<char>(), msg_in.read<char>()};
+        char dir = {msg_in.read<char>()};
+        game.move(pos, {dir});
+        print_board(game);
+      }
 
       msg_in.reset();
       msg_out.reset();
    }
 }
+
 
 int main(int argc, const char* argv[])
 {
@@ -135,8 +173,8 @@ int main(int argc, const char* argv[])
 	}
 
 	printf("My port: %d\n", port);
-	GameState game;
-   sock.init();
-   sock.bind_port(port);
-   listen();
+
+  sock.init();
+  sock.bind_port(port);
+  listen();
 }

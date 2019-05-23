@@ -13,9 +13,9 @@
 #define CURSOR      0x8
 
 #define UL 0 //UP LEFT
-#define UR 1 //UP LEFT
-#define DL 2 //UP RIGHT
-#define DR 3 //DOWN LEFT
+#define UR 1 //UP RIGHT
+#define DL 2 //DOWN LEFT
+#define DR 3 //DOWN RIGHT
 #define END 0xff//END MOVE
 
 
@@ -48,12 +48,13 @@ class GameState
 {
 public:
   char board[8][4];
+  bool black_move = true;
 
   GameState();
   ~GameState();
   void init_row(char row[], char man);
   void init_board();
-  char & tile(const position & pos);
+  char * tile(const position & pos);
   void move(position pos, const std::vector<char>& moves);
 
 };

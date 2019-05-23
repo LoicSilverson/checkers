@@ -25,36 +25,88 @@ void GameState::init_board()
   init_row(board[4], EMPTY);
 }
 
-char & GameState::tile(const position & pos)
+char * GameState::tile(const position & pos)
 {
-  return board[pos.row][pos.element];
+  return &board[pos.row][pos.element];
 }
 
 void GameState::move(position pos, const std::vector<char>& moves)
 {
-  char &tile_origin = tile(pos);
-  if((tile_origin & TEAM_MASK) == EMPTY)
+  auto check_position = [&](position pos)
+  {
+    if(pos.row == -1 || pos.element == -1)
+    {
+      printf("Can not move: target tile is outside the board\n");
+      return false;
+    }
+    return true;
+  };
+
+  auto tile_team = [&](char tile) -> char
+  {
+      return tile & TEAM_MASK;
+  };
+
+
+  const char* dir_names[]
+  {
+    "UP LEFT",
+    "UP RIGHT",
+    "DOWN LEFT",
+    "DOWN RIGHT",
+  };
+
+  printf("Moving %d:%d %s\n", pos.row, pos.element, dir_names[moves[0]]);
+
+  if(!check_position(pos)) return;
+
+  char * tile_origin = tile(pos);
+  if(tile_team(*tile_origin) == EMPTY)
   {
     printf("Can not move: the tile is empty\n");
+    return;
+  }
+
+  if((tile_team(*tile_origin) == BLACK) != black_move)
+  {
+    printf("Can not move: Wrong team\n");
     return;
   }
 
   auto pos_new = pos;
   pos_new.move(moves[0]);
 
-  if(pos_new.row == -1 || pos_new.element == -1)
-  {
-    printf("Can not move: target tile is outside the board\n");
-    return;
-  }
+  if(!check_position(pos_new)) return;
 
-  char &tile_target = tile(pos_new);
+  char * tile_target = tile(pos_new);
 
-  if((tile_target & TEAM_MASK) != EMPTY)
+  if(tile_team(*tile_target) != EMPTY)
   {
-    printf("Can not move: target tile is occupied\n");
-    return;
+    printf("Target tile is occupied, can you eat it?\n");
+
+    if((tile_team(*tile_target) == BLACK) == black_move)
+    {
+      printf("Target tile is friendly, can't eat\n");
+      return;
+    }
+
+    printf("Target tile is enemy, trying to eat\n");
+    auto pos_eaten = pos_new;
+    pos_new.move(moves[0]);
+
+    if(!check_position(pos_new)) return;
+    tile_target = tile(pos_new);
+
+    if(tile_team(*tile_target) != EMPTY)
+    {
+      printf("Can not move: target tile is occupied\n");
+      return;
+    }
+    *tile(pos_eaten) = EMPTY;
+    printf("Ate the enemy\n");
+
   }
-  tile_target = tile_origin;
-  tile_origin = EMPTY;
+  *tile_target = *tile_origin;
+  *tile_origin = EMPTY;
+  black_move = !black_move;
 }

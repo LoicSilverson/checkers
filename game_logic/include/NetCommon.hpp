@@ -5,3 +5,4 @@
 #define DENY 3
 #define KEEP_ALIVE 4
 #define MSG 5
+#define MOVE 6

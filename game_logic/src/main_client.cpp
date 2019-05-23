@@ -1,6 +1,6 @@
 #include <GameState.hpp>
 #include <UDPSocket.hpp>
-#include <UDPCodes.hpp>
+#include <NetCommon.hpp>
 
 #include <thread>
 #include <mutex>
@@ -8,50 +8,50 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <termios.h>
-
-static termios _old, _new;
-
-/* Initialize new terminal i/o settings */
-void initTermios(int echo)
-{
-  tcgetattr(0, &_old); /* grab _old terminal i/o settings */
-  _new = _old; /* make _new settings same as _old settings */
-  _new.c_lflag &= ~ICANON; /* disable buffered i/o */
-  if (echo) {
-      _new.c_lflag |= ECHO; /* set echo mode */
-  } else {
-      _new.c_lflag &= ~ECHO; /* set no echo mode */
-  }
-  tcsetattr(0, TCSANOW, &_new); /* use these _new terminal i/o settings now */
-}
-
-/* Restore _old terminal i/o settings */
-void resetTermios(void)
-{
-  tcsetattr(0, TCSANOW, &_old);
-}
-
-/* Read 1 character - echo defines echo mode */
-char getch_(int echo)
-{
-  char ch;
-  initTermios(echo);
-  ch = getchar();
-  resetTermios();
-  return ch;
-}
-/* Read 1 character without echo */
-char getch(void)
-{
-  return getch_(0);
-}
-
-/* Read 1 character with echo */
-char getche(void)
-{
-  return getch_(1);
-}
+//#include <termios.h>
+//
+//static termios _old, _new;
+//
+///* Initialize new terminal i/o settings */
+//void initTermios(int echo)
+//{
+//  tcgetattr(0, &_old); /* grab _old terminal i/o settings */
+//  _new = _old; /* make _new settings same as _old settings */
+//  _new.c_lflag &= ~ICANON; /* disable buffered i/o */
+//  if (echo) {
+//      _new.c_lflag |= ECHO; /* set echo mode */
+//  } else {
+//      _new.c_lflag &= ~ECHO; /* set no echo mode */
+//  }
+//  tcsetattr(0, TCSANOW, &_new); /* use these _new terminal i/o settings now */
+//}
+//
+///* Restore _old terminal i/o settings */
+//void resetTermios(void)
+//{
+//  tcsetattr(0, TCSANOW, &_old);
+//}
+//
+///* Read 1 character - echo defines echo mode */
+//char getch_(int echo)
+//{
+//  char ch;
+//  initTermios(echo);
+//  ch = getchar();
+//  resetTermios();
+//  return ch;
+//}
+///* Read 1 character without echo */
+//char getch(void)
+//{
+//  return getch_(0);
+//}
+//
+///* Read 1 character with echo */
+//char getche(void)
+//{
+//  return getch_(1);
+//}
 
 
 UDPSocket sock;
@@ -65,9 +65,8 @@ std::mutex sock_mtx;
 
 void send()
 {
-   msg_in.reset();
    msg_out.reset();
-   msg_out.write_int(MSG);
+   msg_out.write(int(MSG));
    msg_out.write_c_string("How are you doing?");
    while(true)
    {
@@ -81,6 +80,21 @@ void send()
    }
 }
 
+void send_move(position pos, char dir)
+{
+  printf("Sending a move\n");
+  printf("Moves: %d, %d, %d\n", pos.row, pos.element, dir);
+  msg_out.reset();
+  msg_out.write(int(MOVE));
+  msg_out.write(pos.row);
+  msg_out.write(pos.element);
+  msg_out.write(dir);
+
+  sock_mtx.lock();
+  sock.send(msg_out, (sockaddr*)&server_addr);
+  sock_mtx.unlock();
+}
+
 bool reg_server(const char * ip, int port)
 {
    server_addr.sin_addr.s_addr = inet_addr(ip);
@@ -90,7 +104,7 @@ bool reg_server(const char * ip, int port)
    sock.set_timeout(1, 0);
 
    msg_out.reset();
-   msg_out.write_int(REGISTER);
+   msg_out.write(int(REGISTER));
 
    sock_mtx.lock();
    sock.send(msg_out, (sockaddr*)&server_addr);
@@ -103,7 +117,7 @@ bool reg_server(const char * ip, int port)
       return false;
    }
 
-   int code = msg_in.read_int();
+   int code = msg_in.read<int>();
    if(code == CONFIRM)
    {
       printf("Registered successfully\n");
@@ -161,27 +175,44 @@ int main(int argc, const char* argv[])
 
 	GameState game;
 
-   sock.init();
-   if(!reg_server("127.0.0.1", port)) return 0;
+  sock.init();
+  if(!reg_server("127.0.0.1", port)) return 0;
 
-   std::thread first ([&]()
-   {
-      printf("Listening\n");
-      while(true)
-      {
-         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::thread first ([&]()
+  {
+    printf("Listening\n");
+    while(true)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-         sock_mtx.lock();
-         int recv_len = sock.receive(msg_in, (sockaddr*)&other);
-         sock_mtx.unlock();
-         if(recv_len == -1) continue;
-         if(ntohs(other.sin_port) == 0) continue;
-         printf("Recieved from %d: %s\n", other.sin_port, msg_in.read_c_string());
-         msg_in.reset();
-      }
-   });
+      sock_mtx.lock();
+      int recv_len = sock.receive(msg_in, (sockaddr*)&other);
+      sock_mtx.unlock();
+      if(recv_len == -1) continue;
+      if(ntohs(other.sin_port) == 0) continue;
+      printf("Recieved from %d: %s\n", other.sin_port, msg_in.read_c_string());
+      msg_in.reset();
+    }
+  });
 
-   send();
+  printf("Starting the input loop\n");
+  printf("To move input: [Position_row Position_column Move]\n");
+  printf("Moves are: 0 - Up-Left, 1 - Up-Right, 3 - Down-Left, 4 - Down-Right\n");
+  int input;
+  position pos;
+  char dir;
+  while(true)
+  {
+    scanf("%d", &input);
+    pos.row = input;
+    scanf("%d", &input);
+    pos.element = input;
+    scanf("%d", &input);
+    dir = input;
+    send_move(pos, dir);
+  };
+
+   //send();
    /*
    print_board(game);
 
