@@ -8,60 +8,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//#include <termios.h>
-//
-//static termios _old, _new;
-//
-///* Initialize new terminal i/o settings */
-//void initTermios(int echo)
-//{
-//  tcgetattr(0, &_old); /* grab _old terminal i/o settings */
-//  _new = _old; /* make _new settings same as _old settings */
-//  _new.c_lflag &= ~ICANON; /* disable buffered i/o */
-//  if (echo) {
-//      _new.c_lflag |= ECHO; /* set echo mode */
-//  } else {
-//      _new.c_lflag &= ~ECHO; /* set no echo mode */
-//  }
-//  tcsetattr(0, TCSANOW, &_new); /* use these _new terminal i/o settings now */
-//}
-//
-///* Restore _old terminal i/o settings */
-//void resetTermios(void)
-//{
-//  tcsetattr(0, TCSANOW, &_old);
-//}
-//
-///* Read 1 character - echo defines echo mode */
-//char getch_(int echo)
-//{
-//  char ch;
-//  initTermios(echo);
-//  ch = getchar();
-//  resetTermios();
-//  return ch;
-//}
-///* Read 1 character without echo */
-//char getch(void)
-//{
-//  return getch_(0);
-//}
-//
-///* Read 1 character with echo */
-//char getche(void)
-//{
-//  return getch_(1);
-//}
-
-
 UDPSocket sock;
 Buffer msg_in;
 Buffer msg_out;
 sockaddr_in other;
 sockaddr_in server_addr;
 std::mutex sock_mtx;
-
-//void listen
 
 void send()
 {

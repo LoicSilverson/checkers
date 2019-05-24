@@ -4,6 +4,25 @@
 #include <string.h>
 #include <stdlib.h>
 
+bool sockaddr_key::operator==(const sockaddr_key& that)
+{
+   return sin_addr.s_addr == that.sin_addr.s_addr && sin_port == that.sin_port;
+}
+sockaddr_key::sockaddr_key(const sockaddr_in & that)
+{
+   memcpy(this, &that, sizeof(that));
+}
+
+std::size_t sockaddrHasher::operator()(const sockaddr_key& s) const
+{
+   return (size_t)(s.sin_addr.s_addr ^ s.sin_port);
+}
+
+bool operator==(const sockaddr_key& first, const sockaddr_key& second)
+{
+  return first.sin_addr.s_addr == second.sin_addr.s_addr && first.sin_port == second.sin_port;
+}
+
 int UDPSocket::init()
 {
   printf("Start init\n");

@@ -6,6 +6,19 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+struct sockaddr_key : sockaddr_in
+{
+  bool operator==(const sockaddr_key& that);
+  sockaddr_key(const sockaddr_in & that);
+};
+
+struct sockaddrHasher
+{
+   size_t operator()(const sockaddr_key& s) const;
+};
+
+bool operator==(const sockaddr_key& first, const sockaddr_key& second);
+
 class UDPSocket
 {
   int sock_id;
