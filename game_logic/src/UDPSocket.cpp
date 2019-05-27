@@ -71,14 +71,3 @@ int UDPSocket::bind_port(int port)
     return -1;
   return 1;
 }
-
-int UDPSocket::receive(Buffer& buf, struct sockaddr * source)
-{
-  unsigned int source_len;
-  return recvfrom(sock_id, buf.m_data, BUFLEN, 1, source, &source_len);
-}
-
-int UDPSocket::send(const Buffer& buf, struct sockaddr* target)
-{
-  return sendto(sock_id, buf.m_data, buf.m_size, 0, target, sizeof(*target));
-}

@@ -15,7 +15,13 @@
 #include <vector>
 
 GameState game;
-BufferHolder<2> holder;
+BufferHolder<2, 512> holder;
+
+UDPSocket sock;
+Buffer<512> msg_in;
+Buffer<512> msg_out;
+std::mutex sock_mutex;
+sockaddr_in other;
 
 void print_board(const GameState& g)
 {
@@ -49,13 +55,7 @@ struct client
    bool connected;
 };
 
-char dead_frames_limit = 10;
-
-UDPSocket sock;
-Buffer msg_in;
-Buffer msg_out;
-std::mutex sock_mutex;
-sockaddr_in other;
+const char dead_frames_limit = 10;
 
 std::unordered_map<sockaddr_key, char, sockaddrHasher> clients;
 
@@ -75,8 +75,6 @@ void listen()
       auto x = clients.find(other);
       if(x != clients.end())
          x->second = 0;
-
-      sock_mutex.unlock();
 
       int code = msg_in.read<int>();
       if(code == REGISTER)
@@ -118,29 +116,23 @@ void listen()
 
 void keep_alive()
 {
+   Buffer<4> keep_alive_buff;
+   keep_alive_buff.write(int(KEEP_ALIVE));
    while(true)
    {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      holder.use_buffer([](Buffer & buffer){
-         buffer.write_int(KEEP_ALIVE);
-         {
-            std::lock_guard<std::mutex> lock(sock_mutex);
-            for(auto& client : clients)
-            sock.send(buffer, (sockaddr*)&client.first);
-         }
-      });
 
       {
          std::lock_guard<std::mutex> lock(sock_mutex);
          for(auto client_it = clients.begin(); client_it != clients.end();)
          {
-
             if(client_it->second >= dead_frames_limit)
             {
                printf("Removing client for inactivity\n", clients.size());
                clients.erase(client_it++);
                continue;
             }
+            sock.send(keep_alive_buff, (sockaddr*)&client_it->first);
             client_it->second++;
             ++client_it;
 

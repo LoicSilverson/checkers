@@ -6,10 +6,10 @@
 #include <condition_variable>
 
 
-template<int SIZE>
+template<int SIZE, int BUFFSIZE>
 struct BufferHolder
 {
-   std::array<Buffer, SIZE> buffers;
+   std::array<Buffer<BUFFSIZE>, SIZE> buffers;
    std::array<int, SIZE> numbers;
 
    int head;
@@ -68,7 +68,7 @@ struct BufferHolder
       tail = n;
    }
 
-   void use_buffer(std::function<void(Buffer&)> callback)
+   void use_buffer(std::function<void(Buffer<SIZE>&)> callback)
    {
       int current;
       {

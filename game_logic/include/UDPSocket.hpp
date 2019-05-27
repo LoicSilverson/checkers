@@ -27,6 +27,16 @@ public:
   int init();
   int set_timeout(int seconds, int nanoseconds);
   int bind_port(int port);
-  int receive(Buffer& buf, struct sockaddr * source);
-  int send(const Buffer& buf, struct sockaddr* target);
+  template<int SIZE>
+  int receive(Buffer<SIZE>& buf, struct sockaddr * source)
+  {
+    unsigned int source_len;
+    return recvfrom(sock_id, buf.m_data, SIZE, 1, source, &source_len);
+  }
+
+  template<int SIZE>
+  int send(const Buffer<SIZE>& buf, struct sockaddr* target)
+  {
+    return sendto(sock_id, buf.m_data, buf.m_size, 0, target, sizeof(*target));
+  }
 };

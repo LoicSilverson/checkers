@@ -8,26 +8,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <BufferHolder.hpp>
+
 UDPSocket sock;
-Buffer msg_in;
-Buffer msg_out;
+Buffer<512> msg_in;
+Buffer<512> msg_out;
 sockaddr_in other;
 sockaddr_in server_addr;
 std::mutex sock_mtx;
 
-void send()
+BufferHolder<2, 512> holder;
+const char dead_frames_limit = 10;
+char dead_frames = 0;
+
+void keep_alive()
 {
-   msg_out.reset();
-   msg_out.write(int(KEEP_ALIVE));
-   //msg_out.write_c_string("How are you doing?");
+   Buffer<4> keep_alive_buff;
+   keep_alive_buff.write(int(KEEP_ALIVE));
+
    while(true)
    {
-      printf("Sending\n");
       sock_mtx.lock();
-      sock.send(msg_out, (sockaddr*)&server_addr);
+      sock.send(keep_alive_buff, (sockaddr*)&server_addr);
       sock_mtx.unlock();
 
-      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
    }
 }
 
@@ -108,6 +113,32 @@ void print_board(const GameState& g)
         board[row][3]);
 }
 
+void listen()
+{
+   printf("Listening\n");
+   while(true)
+   {
+     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+     sock_mtx.lock();
+     int recv_len = sock.receive(msg_in, (sockaddr*)&other);
+     sock_mtx.unlock();
+     if(recv_len == -1) continue;
+     if(ntohs(other.sin_port) == 0) continue;
+
+     int code = msg_in.read<int>();
+
+     if(code = KEEP_ALIVE)
+     {
+        printf("Staying alive\n");
+        continue;
+     }
+
+     printf("Recieved from %d: %s\n", other.sin_port, msg_in.read_c_string());
+     msg_in.reset();
+   }
+}
+
 int main(int argc, const char* argv[])
 {
   int port = 0;
@@ -129,24 +160,9 @@ int main(int argc, const char* argv[])
   sock.init();
   if(!reg_server("127.0.0.1", port)) return 0;
 
-  std::thread first ([&]()
-  {
-    printf("Listening\n");
-    while(true)
-    {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-      sock_mtx.lock();
-      int recv_len = sock.receive(msg_in, (sockaddr*)&other);
-      sock_mtx.unlock();
-      if(recv_len == -1) continue;
-      if(ntohs(other.sin_port) == 0) continue;
-      printf("Recieved from %d: %s\n", other.sin_port, msg_in.read_c_string());
-      msg_in.reset();
-    }
-  });
-
-  send();
+  std::thread keep_alive_thread(&keep_alive);
+  listen();
+  keep_alive_thread.join();
 
   //printf("Starting the input loop\n");
   //printf("To move input: [Position_row Position_column Move]\n");
