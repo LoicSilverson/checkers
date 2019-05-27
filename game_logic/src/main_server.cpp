@@ -15,6 +15,7 @@
 #include <vector>
 
 GameState game;
+BufferHolder<2> holder;
 
 void print_board(const GameState& g)
 {

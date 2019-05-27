@@ -9,14 +9,16 @@
 template<int SIZE>
 struct BufferHolder
 {
-   std::array<Buffer, SIZE> Buffers;
+   std::array<Buffer, SIZE> buffers;
    std::array<int, SIZE> numbers;
 
    int head;
    int tail;
 
-   std::mutex mtx;
+   std::mutex mtx_buffers;
+
    std::condition_variable cv;
+   std::mutex mtx_cv;
 
    BufferHolder()
    {
@@ -33,7 +35,7 @@ struct BufferHolder
    int pop()
    {
       printf("Poppin. . .");
-      std::lock_guard<std::mutex> lock(mtx);
+      std::lock_guard<std::mutex> lock(mtx_buffers);
       if(head == -1)
       {
          printf("No more elements to pop\n");
@@ -47,29 +49,40 @@ struct BufferHolder
       printf("%d\n", h);
       return h;
    }
+
    void push(int n)
    {
       printf("Pushin %d\n", n);
-      std::lock_guard<std::mutex> lock(mtx);
+      std::lock_guard<std::mutex> lock(mtx_buffers);
       if(numbers[n] != -1 || n == tail)
       {
          printf("Can't push an element which is not loose\n");
          return;
       }
+      buffers[n].reset();
       if(head == -1)
       {
          head = n;
          tail = n;
+         cv.notify_one();
          return;
       }
       numbers[tail] = n;
       tail = n;
    }
 
-   void fill(std::function<void(Buffer&)> callback)
+   void use_buffer(std::function<void(Buffer&)> callback)
    {
-      int current = pop();
-      if(current == -1) return ;
+      int current;
+      {
+         std::unique_lock<std::mutex> lk(mtx_cv);
+         cv.wait(lk, [&]{
+            current = pop();
+            return current != -1;
+         });
+      }
+      callback(buffers[current]);
+      push(current);
    }
    void print()
    {
