@@ -65,20 +65,28 @@ void listen()
    while(true)
    {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      {
+         std::lock_guard<std::mutex> lock(sock_mutex);
+         int recv_len = sock.receive(msg_in, (sockaddr*)&other);
+         if(recv_len == -1) continue;
+         if(ntohs(other.sin_port) == 0) continue;
+      }
 
-      int recv_len = sock.receive(msg_in, (sockaddr*)&other);
-      if(recv_len == -1) continue;
-      if(ntohs(other.sin_port) == 0) continue;
+      auto x = clients.find(other);
+      if(x != clients.end())
+         x->second = 0;
+
+      sock_mutex.unlock();
 
       int code = msg_in.read<int>();
       if(code == REGISTER)
       {
          printf("Registarion attempt\n");
-         clients[(sockaddr_key)other] = true;
 
          sock_mutex.lock();
          msg_out.write(CONFIRM);
          sock.send(msg_out, (sockaddr*)&other);
+         clients[(sockaddr_key)other] = true;
          sock_mutex.unlock();
 
          print_board(game);
@@ -104,13 +112,41 @@ void listen()
       msg_in.reset();
       msg_out.reset();
       sock_mutex.unlock();
+
    }
 }
 
 void keep_alive()
 {
-   sock_mutex.lock();
-   sock_mutex.lock();
+   while(true)
+   {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      holder.use_buffer([](Buffer & buffer){
+         buffer.write_int(KEEP_ALIVE);
+         {
+            std::lock_guard<std::mutex> lock(sock_mutex);
+            for(auto& client : clients)
+            sock.send(buffer, (sockaddr*)&client.first);
+         }
+      });
+
+      {
+         std::lock_guard<std::mutex> lock(sock_mutex);
+         for(auto client_it = clients.begin(); client_it != clients.end();)
+         {
+
+            if(client_it->second >= dead_frames_limit)
+            {
+               printf("Removing client for inactivity\n", clients.size());
+               clients.erase(client_it++);
+               continue;
+            }
+            client_it->second++;
+            ++client_it;
+
+         }
+      }
+   }
 }
 
 int main(int argc, const char* argv[])
@@ -133,5 +169,7 @@ int main(int argc, const char* argv[])
 
   sock.init();
   sock.bind_port(port);
+  std::thread keep_alive_thread(&keep_alive);
   listen();
+  keep_alive_thread.join();
 }

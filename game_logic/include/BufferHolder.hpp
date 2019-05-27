@@ -34,7 +34,6 @@ struct BufferHolder
 
    int pop()
    {
-      printf("Poppin. . .");
       std::lock_guard<std::mutex> lock(mtx_buffers);
       if(head == -1)
       {
@@ -46,13 +45,11 @@ struct BufferHolder
       if(head == -1) tail = -1;
       numbers[h] = -1;
 
-      printf("%d\n", h);
       return h;
    }
 
    void push(int n)
    {
-      printf("Pushin %d\n", n);
       std::lock_guard<std::mutex> lock(mtx_buffers);
       if(numbers[n] != -1 || n == tail)
       {
@@ -84,6 +81,7 @@ struct BufferHolder
       callback(buffers[current]);
       push(current);
    }
+
    void print()
    {
       for(int i = 0; i < SIZE; i++)

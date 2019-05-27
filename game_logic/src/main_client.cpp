@@ -18,17 +18,16 @@ std::mutex sock_mtx;
 void send()
 {
    msg_out.reset();
-   msg_out.write(int(MSG));
-   msg_out.write_c_string("How are you doing?");
+   msg_out.write(int(KEEP_ALIVE));
+   //msg_out.write_c_string("How are you doing?");
    while(true)
    {
       printf("Sending\n");
-
       sock_mtx.lock();
       sock.send(msg_out, (sockaddr*)&server_addr);
       sock_mtx.unlock();
 
-      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
    }
 }
 
@@ -147,22 +146,24 @@ int main(int argc, const char* argv[])
     }
   });
 
-  printf("Starting the input loop\n");
-  printf("To move input: [Position_row Position_column Move]\n");
-  printf("Moves are: 0 - Up-Left, 1 - Up-Right, 3 - Down-Left, 4 - Down-Right\n");
-  int input;
-  position pos;
-  char dir;
-  while(true)
-  {
-    scanf("%d", &input);
-    pos.row = input;
-    scanf("%d", &input);
-    pos.element = input;
-    scanf("%d", &input);
-    dir = input;
-    send_move(pos, dir);
-  };
+  send();
+
+  //printf("Starting the input loop\n");
+  //printf("To move input: [Position_row Position_column Move]\n");
+  //printf("Moves are: 0 - Up-Left, 1 - Up-Right, 3 - Down-Left, 4 - Down-Right\n");
+  //int input;
+  //position pos;
+  //char dir;
+  //while(true)
+  //{
+   // scanf("%d", &input);
+   // pos.row = input;
+   // scanf("%d", &input);
+   // pos.element = input;
+   // scanf("%d", &input);
+   // dir = input;
+   // send_move(pos, dir);
+  //};
 
    //send();
    /*

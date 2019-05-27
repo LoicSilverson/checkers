@@ -27,7 +27,7 @@ void GameState::init_board()
 
 char * GameState::tile(const position & pos)
 {
-  return &board[pos.row][pos.element];
+  return &board[(int)pos.row][(int)pos.element];
 }
 
 void GameState::move(position pos, const std::vector<char>& moves)
@@ -56,7 +56,7 @@ void GameState::move(position pos, const std::vector<char>& moves)
     "DOWN RIGHT",
   };
 
-  printf("Moving %d:%d %s\n", pos.row, pos.element, dir_names[moves[0]]);
+  printf("Moving %d:%d %s\n", pos.row, pos.element, dir_names[(int)moves[0]]);
 
   if(!check_position(pos)) return;
 
