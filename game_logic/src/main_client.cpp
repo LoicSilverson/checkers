@@ -79,10 +79,29 @@ bool reg_server(const char * ip, int port)
       return false;
    }
 
-   int code = msg_in.read<int>();
+
+   int code = msg_in.read_int();
+
    if(code == CONFIRM)
    {
       printf("Registered successfully\n");
+      char team = msg_in.read<char>();
+      printf("%d\n", team);
+      //if(team == (char)BLACK)
+      if(team == BLACK)
+      {
+         printf("Your team is BLACK\n");
+      }
+      //else if(team == (char)WHITE)
+      else if(team == WHITE)
+      {
+         printf("Your team is WHITE\n");
+      }
+      else
+      {
+         printf("You are an observer\n");
+      }
+
       sock.set_timeout(0, 10);
       return true;
    }

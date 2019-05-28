@@ -49,7 +49,6 @@ struct position
    }
 };
 
-
 class GameState
 {
 public:

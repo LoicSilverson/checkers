@@ -60,7 +60,7 @@ std::mutex mtx_clients;
 bool registration(const sockaddr_key& other)
 {
    printf("Registarion attempt\n");
-   static Buffer<sizeof(int)> msg_reg_resp;
+   static Buffer<2*sizeof(int)> msg_reg_resp;
    msg_reg_resp.reset();
 
    std::pair<char, bool> game_reg;
@@ -77,11 +77,14 @@ bool registration(const sockaddr_key& other)
       {
          auto id = sockaddrHasher()(other);
          printf("Registarion procedes for id %d\n", id);
-         clients[(sockaddr_key)other] = {0, (clients.size() == 0 ? (char)BLACK : (char)WHITE)};
-
          game_reg = game.register_player(id);
+
+         clients[(sockaddr_key)other] = {0, game_reg.first};
+         printf("%d\n", game_reg.first);
+
          msg_reg_resp.write(CONFIRM);
          msg_reg_resp.write(game_reg.first);
+
          sock.send(msg_reg_resp, (sockaddr*)&other);
       }
    }
@@ -111,8 +114,6 @@ void listen()
          x->second.dead_frames = 0;
 
       int code = msg_in.read<int>();
-      //printf("Code %d from %d\n", code, other.sin_port);
-
 
       if(code == REGISTER)
       {
@@ -128,18 +129,17 @@ void listen()
       }
       else if(code == MOVE)
       {
-        printf("Recieved a move\n");
-        position pos{msg_in.read<char>(), msg_in.read<char>()};
-        char dir = {msg_in.read<char>()};
-        game.move(sockaddrHasher()(other), pos, {dir});
-        print_board(game);
+         printf("Recieved a move\n");
+         position pos{msg_in.read<char>(), msg_in.read<char>()};
+         char dir = {msg_in.read<char>()};
+         game.move(sockaddrHasher()(other), pos, {dir});
+         print_board(game);
       }
 
       sock_mutex.lock();
       msg_in.reset();
       msg_out.reset();
       sock_mutex.unlock();
-
    }
 }
 
